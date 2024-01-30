@@ -1,11 +1,11 @@
 package main
 
 import (
+	"github.com/emersion/go-imap"
+	"github.com/emersion/go-imap/client"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
-	"github.com/emersion/go-imap/client"
-	"github.com/emersion/go-imap"
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 
 	// Login
 	log.Println("Logging in...")
-	if err:= c.Login(email, password); err != nil {
+	if err := c.Login(email, password); err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Logged in")
@@ -42,6 +42,15 @@ func main() {
 	}
 
 	// Search for unread emails with specific subject
+	criteria := imap.NewSearchCriteria()
+	criteria.WithoutFlags = []string{"\\Seen"}
+	criteria.Header.Add("Subject", "your application was sent")
+	uids, err := c.Search(criteria)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("UIDs found:", uids)
 
 	// ... process email
 }
