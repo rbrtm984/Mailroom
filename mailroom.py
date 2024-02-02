@@ -1,83 +1,84 @@
 import os.path
 import google.auth
+from google.auth import load_credentials_from_file
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from google.auth.credentials import Credentials
 
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly',
-          'https://www.googleapis.com/auth/spreadsheets']
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+]
 
-def get_gmail_service():
+def get_credentials():
     creds = None
-    if os.path.exists('token.json'):
-        creds = google.auth.load_credentials_from_file('token.json', SCOPES)[0]
+    if os.path.exists("token.json"):
+        creds, _ = load_credentials_from_file("token.json")
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
+        with open("token.json", "w") as token:
             token.write(creds.to_json())
-        
-    return build('gmail', 'v1', credentials=creds)
+    return creds
+
+def get_gmail_service():
+    creds = get_credentials()
+
+    return build("gmail", "v1", credentials=creds)
+
 
 def search_emails(service):
-    # This query should match the job application confirmation email format 
-    # for now, it will match LinkedIn emails, which always have the subject line:
-    # "Robert, your application was sent to [Company Name]"
+    print("Starting email search...")
     query = "subject: Robert, your application was sent to"
-    results = service.users().messages().list(userId='me', q=query).execute()
-    messages = results.get('messages', [])
+    results = service.users().messages().list(userId="me", q=query).execute()
+    messages = results.get("messages", [])
+
+    if not messages:
+        print("No messages found.")
+        return []
 
     emails = []
-    for msg in messages: 
-        msg_id = msd['id']
+    for msg in messages:
+        msg_id = msg["id"]
+        print(f"Fetching message {msg_id}...")
         message = service.users().messages().get(userId="me", id=msg_id).execute()
 
-        # Extract the data we need from each message
-        # This data, for now, will be the company name
-        headers = message['payload']['headers']
-        subject = next(header['value'] for header in headers if header['name'] == 'Subject')
-        date = next(header['value'] for header in headers if header['name'] == 'Date')
-        company = subject.split("to ")[1].split(" on ")[0]
-        emails.append('subject': subject, 'company': company, 'date': date)
-    
+        headers = message["payload"]["headers"]
+        subject = next((header["value"] for header in headers if header["name"] == "Subject"), None)
+        date = next((header["value"] for header in headers if header["name"] == "Date"), None)
+
+        if subject:
+            company = subject.split("to ")[1].split(" on ")[0]
+            emails.append({"subject": subject, "company": company, "date": date})
+            print(f"Found: {subject}")
+
     return emails
 
 def update_spreadsheet(sheet_service, data):
     # This function will update the spreadsheet with the data we extracted from the emails
+    pass
+
 
 def main():
-    creds = None
-    # The file token.json stores the user's access and refresh tokens.
-    if os.path.exists('token.json'):
-        creds = google.auth.load_credentials_from_file('token.json', SCOPES)[0]
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+    gmail_service = get_gmail_service()
+    emails = search_emails(gmail_service)
 
-    service = build('gmail', 'v1', credentials=creds)
+    # Load credentials from the file
+    # creds = get_credentials()
 
-    # Call the Gmail API
-    results = service.users().labels().list(userId='me').execute()
-    labels = results.get('labels', [])
+    print("Emails fetched successfully:")
+    for email in emails:
+        print(email)
+    # # Set up Google Sheets service
+    # sheet_service = build("sheets", "v4", credentials=creds)
 
-    if not labels:
-        print('No labels found.')
-    else:
-        print('Labels:')
-        for label in labels:
-            print(label['name'])
+    # # Update the spreadsheet with the data we extracted from the emails
+    # update_spreadsheet(sheet_service, emails)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
