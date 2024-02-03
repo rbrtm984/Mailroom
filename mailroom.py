@@ -33,7 +33,6 @@ def get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
-# This function searches for emails with a specific subject and extracts the company name and date
 def search_emails(service):
     print("Starting email search...")
     query = "subject: Robert, your application was sent to"
@@ -57,7 +56,9 @@ def search_emails(service):
             break
 
     emails = []
-    for msg in all_messages:
+    for i, msg in enumerate(all_messages):
+        if i >= 5:  # Limit to the first 5 email matches
+            break
         msg_id = msg["id"]
         print(f"Fetching message {msg_id}...")
         message = service.users().messages().get(userId="me", id=msg_id).execute()
@@ -79,7 +80,7 @@ def search_emails(service):
 
 
 # This function will update the spreadsheet with the data we extracted from the emails
-def update_spreadsheet(sheet_service, data):
+def update_spreadsheet(sheet_service, spreadsheet_id, data):
     range_name = "Tracker!A10A"  # Adjust based on your needs
     value_input_option = (
         "RAW"  # 'RAW' if inputting raw data, 'USER_ENTERED' to mimic user input
@@ -125,18 +126,20 @@ def main():
     gmail_service = get_gmail_service()
     emails = search_emails(gmail_service)
 
+    print("Emails found:", emails)
+
     # Load credentials from the file
-    creds = get_credentials()
+    # creds = get_credentials()
 
     # Set up Google Sheets service
-    sheet_service = build("sheets", "v4", credentials=creds)
+    # sheet_service = build("sheets", "v4", credentials=creds)
 
-    spreadsheet_id = "1xM4KKFcfHkSjbg249DhmF-w2gT87VOIAmXz3yLHjW-M" # Replace with your spreadsheet ID
+    # spreadsheet_id = "1xM4KKFcfHkSjbg249DhmF-w2gT87VOIAmXz3yLHjW-M" # Replace with your spreadsheet ID
 
     # Update the spreadsheet with the data we extracted from the emails
-    update_spreadsheet(sheet_service, spreadsheet_id, emails)
+    # update_spreadsheet(sheet_service, spreadsheet_id, emails)
 
-    print("Spreadsheet updated successfully")
+    # print("Spreadsheet updated successfully")
 
 
 if __name__ == "__main__":
